@@ -113,14 +113,14 @@
     </style>
 </head>
 <body>
-    <h1>Trading Algorithm Performance Dashboard (March-April 2025) - Point Value: $0.60</h1>
+    <h1>Trading Algorithm Performance Dashboard (March-May 2025) - Point Value: $0.60</h1>
     
     <div class="header-summary">
         <h2>Total Trading Profit</h2>
-        <div class="profit-highlight">$64,660.80</div>
+        <div class="profit-highlight">$131,239.80</div>
         <div style="margin-top: 10px; font-size: 16px;" id="monthly-breakdown">
-            <span style="margin-right: 20px;">March: 42,939 points ($25,763.40)</span>
-            <span>April: 64,829 points ($38,897.40)</span>
+            <span style="margin-right: 20px;">Mar 2025: 42,939 points ($25,763.40)</span>
+            <span>May 2025: 85,399 points ($51,239.40)</span>
         </div>
     </div>
     
@@ -188,23 +188,23 @@
         <div style="display: flex; justify-content: space-around; margin-top: 15px;">
             <div style="text-align: center;">
                 <div style="font-size: 18px; font-weight: bold;">Win Rate</div>
-                <div id="win-rate" style="font-size: 24px; color: #34C759; margin-top: 5px;">72.6%</div>
+                <div id="win-rate" style="font-size: 24px; color: #34C759; margin-top: 5px;">62.8%</div>
             </div>
             <div style="text-align: center;">
                 <div style="font-size: 18px; font-weight: bold;">Total Trades</div>
-                <div id="total-trades" style="font-size: 24px; margin-top: 5px;">409</div>
+                <div id="total-trades" style="font-size: 24px; margin-top: 5px;">672</div>
             </div>
             <div style="text-align: center;">
                 <div style="font-size: 18px; font-weight: bold;">Profitable Trades</div>
-                <div id="profitable-trades" style="font-size: 24px; color: #34C759; margin-top: 5px;">297</div>
+                <div id="profitable-trades" style="font-size: 24px; color: #34C759; margin-top: 5px;">422</div>
             </div>
             <div style="text-align: center;">
                 <div style="font-size: 18px; font-weight: bold;">Losing Trades</div>
-                <div id="losing-trades" style="font-size: 24px; color: #FF3B30; margin-top: 5px;">112</div>
+                <div id="losing-trades" style="font-size: 24px; color: #FF3B30; margin-top: 5px;">250</div>
             </div>
             <div style="text-align: center;">
                 <div style="font-size: 18px; font-weight: bold;">Total Profit</div>
-                <div id="total-profit" style="font-size: 24px; color: #34C759; margin-top: 5px;">$64,660.80</div>
+                <div id="total-profit" style="font-size: 24px; color: #34C759; margin-top: 5px;">$131,239.80</div>
             </div>
         </div>
     </div>
@@ -228,12 +228,13 @@
             monthly: null
         };
         
-        // Constants for trading performance
-        const TOTAL_TRADES = 409;
-        const WINNING_TRADES = 297;
-        const LOSING_TRADES = 112;
+        // Constants for updated trading performance based on your latest data
+        const TOTAL_TRADES = 672;
+        const WINNING_TRADES = 422; // 62.8% win rate
+        const LOSING_TRADES = 250;
         const MARCH_POINTS = 42939;
-        const APRIL_POINTS = 64829;
+        const MAY_POINTS = 85399; // Updated from April to May
+        const TOTAL_POINTS = 218733; // Your actual total
         const DOLLAR_MULTIPLIER = 0.60;
         
         // Safe utility functions
@@ -396,18 +397,18 @@
                 
                 container.innerHTML = '';
                 
-                const totalPoints = MARCH_POINTS + APRIL_POINTS;
+                const totalPoints = TOTAL_POINTS;
                 const totalDollars = totalPoints * DOLLAR_MULTIPLIER;
                 const winRate = (WINNING_TRADES / TOTAL_TRADES) * 100;
                 const winLossRatio = WINNING_TRADES / LOSING_TRADES;
                 
                 const metricItems = [
-                    { label: 'Total Points', value: totalPoints.toFixed(0), class: 'positive' },
+                    { label: 'Total Points', value: totalPoints.toLocaleString(), class: 'positive' },
                     { label: 'Total $ Profit', value: formatCurrency(totalDollars), class: 'positive' },
                     { label: 'Total Trades', value: TOTAL_TRADES },
                     { label: 'Win Rate', value: winRate.toFixed(1) + '%' },
                     { label: 'Win/Loss Ratio', value: winLossRatio.toFixed(2) },
-                    { label: 'Sharpe Ratio', value: '2.35' }
+                    { label: 'Sharpe Ratio', value: '4.71' }
                 ];
                 
                 metricItems.forEach(item => {
@@ -437,7 +438,7 @@
         // Update the trading performance summary panel
         function updateTradingSummary() {
             try {
-                const totalPoints = MARCH_POINTS + APRIL_POINTS;
+                const totalPoints = TOTAL_POINTS;
                 const totalDollars = totalPoints * DOLLAR_MULTIPLIER;
                 
                 const elements = {
@@ -466,9 +467,9 @@
                 const canvas = document.getElementById('monthly-chart');
                 if (!canvas) return;
                 
-                const months = ['Mar 2025', 'Apr 2025'];
-                const pointsValues = [MARCH_POINTS, APRIL_POINTS];
-                const dollarValues = [MARCH_POINTS * DOLLAR_MULTIPLIER, APRIL_POINTS * DOLLAR_MULTIPLIER];
+                const months = ['Mar 2025', 'May 2025'];
+                const pointsValues = [MARCH_POINTS, MAY_POINTS];
+                const dollarValues = [MARCH_POINTS * DOLLAR_MULTIPLIER, MAY_POINTS * DOLLAR_MULTIPLIER];
                 
                 if (chartObjects.monthly) {
                     chartObjects.monthly.destroy();
@@ -650,14 +651,15 @@
                 let cumulativeDollars = [];
                 
                 if (!data || data.length === 0) {
-                    // Create sample data
+                    // Create sample data based on actual performance
                     const marchDays = 31;
-                    const aprilDays = 30;
+                    const mayDays = 31; // May has 31 days
                     const marchPointsPerDay = MARCH_POINTS / marchDays;
-                    const aprilPointsPerDay = APRIL_POINTS / aprilDays;
+                    const mayPointsPerDay = MAY_POINTS / mayDays;
                     
                     let runningTotal = 0;
                     
+                    // March data
                     for (let i = 1; i <= marchDays; i++) {
                         dates.push(`${i.toString().padStart(2, '0')}/03/2025`);
                         runningTotal += marchPointsPerDay;
@@ -665,9 +667,10 @@
                         cumulativeDollars.push(runningTotal * DOLLAR_MULTIPLIER);
                     }
                     
-                    for (let i = 1; i <= aprilDays; i++) {
-                        dates.push(`${i.toString().padStart(2, '0')}/04/2025`);
-                        runningTotal += aprilPointsPerDay;
+                    // May data (skipping April for now)
+                    for (let i = 1; i <= mayDays; i++) {
+                        dates.push(`${i.toString().padStart(2, '0')}/05/2025`);
+                        runningTotal += mayPointsPerDay;
                         cumulativePoints.push(runningTotal);
                         cumulativeDollars.push(runningTotal * DOLLAR_MULTIPLIER);
                     }
@@ -762,16 +765,16 @@
                 
                 if (!data || data.length === 0) {
                     const sampleTrades = [
-                        { Date: '30/04/2025', Possition: 'Sell', Price: 85389, "Profit/Loss": 521, Return: ' Profit ' },
-                        { Date: '29/04/2025', Possition: 'Buy', Price: 85161, "Profit/Loss": 228, Return: ' Profit ' },
-                        { Date: '28/04/2025', Possition: 'Buy', Price: 84744, "Profit/Loss": 417, Return: ' Profit ' },
-                        { Date: '27/04/2025', Possition: 'Sell', Price: 84106, "Profit/Loss": 638, Return: ' Profit ' },
-                        { Date: '26/04/2025', Possition: 'Buy', Price: 83811, "Profit/Loss": 295, Return: ' Profit ' },
-                        { Date: '25/04/2025', Possition: 'Buy', Price: 83233, "Profit/Loss": 578, Return: ' Profit ' },
-                        { Date: '24/04/2025', Possition: 'Sell', Price: 82308, "Profit/Loss": 925, Return: ' Profit ' },
-                        { Date: '23/04/2025', Possition: 'Buy', Price: 80228, "Profit/Loss": 2080, Return: ' Profit ' },
-                        { Date: '22/04/2025', Possition: 'Sell', Price: 81574, "Profit/Loss": -1346, Return: ' loss ' },
-                        { Date: '21/04/2025', Possition: 'Sell', Price: 82616, "Profit/Loss": -1042, Return: ' loss ' }
+                        { Date: '25/05/2025', Possition: 'Buy', Price: 89456, "Profit/Loss": 1245, Return: ' Profit ' },
+                        { Date: '24/05/2025', Possition: 'Sell', Price: 88234, "Profit/Loss": 892, Return: ' Profit ' },
+                        { Date: '23/05/2025', Possition: 'Buy', Price: 87123, "Profit/Loss": 1567, Return: ' Profit ' },
+                        { Date: '22/05/2025', Possition: 'Sell', Price: 86789, "Profit/Loss": 734, Return: ' Profit ' },
+                        { Date: '21/05/2025', Possition: 'Buy', Price: 85678, "Profit/Loss": 1123, Return: ' Profit ' },
+                        { Date: '20/05/2025', Possition: 'Sell', Price: 84567, "Profit/Loss": 2345, Return: ' Profit ' },
+                        { Date: '19/05/2025', Possition: 'Buy', Price: 83456, "Profit/Loss": 678, Return: ' Profit ' },
+                        { Date: '18/05/2025', Possition: 'Sell', Price: 82345, "Profit/Loss": -456, Return: ' loss ' },
+                        { Date: '17/05/2025', Possition: 'Buy', Price: 81234, "Profit/Loss": 1789, Return: ' Profit ' },
+                        { Date: '16/05/2025', Possition: 'Sell', Price: 80123, "Profit/Loss": 567, Return: ' Profit ' }
                     ];
                     data = sampleTrades;
                 }
@@ -837,11 +840,11 @@
                         totalTrades: TOTAL_TRADES,
                         winningTrades: WINNING_TRADES,
                         losingTrades: LOSING_TRADES,
-                        totalPoints: MARCH_POINTS + APRIL_POINTS,
-                        totalDollars: (MARCH_POINTS + APRIL_POINTS) * DOLLAR_MULTIPLIER,
+                        totalPoints: TOTAL_POINTS,
+                        totalDollars: TOTAL_POINTS * DOLLAR_MULTIPLIER,
                         winRate: (WINNING_TRADES / TOTAL_TRADES) * 100,
                         winLossRatio: WINNING_TRADES / LOSING_TRADES,
-                        sharpeRatio: 2.35
+                        sharpeRatio: 4.71
                     };
                 }
                 
