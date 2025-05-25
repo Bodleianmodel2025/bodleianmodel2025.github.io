@@ -118,17 +118,28 @@
     <div class="header-summary">
         <h2>Total Trading Profit</h2>
         <div class="profit-highlight">$64,660.80</div>
-        <div style="margin-top: 10px; font-size: 16px;">
+        <div style="margin-top: 10px; font-size: 16px;" id="monthly-breakdown">
             <span style="margin-right: 20px;">March: 42,939 points ($25,763.40)</span>
             <span>April: 64,829 points ($38,897.40)</span>
         </div>
     </div>
     
     <div class="file-input">
-        <p>For best results, upload your complete CSV file with data through April 30, 2025:</p>
-        <label for="file-upload" class="upload-button">Upload Full Trading Data (CSV)</label>
+        <p>Upload your CSV file with trading data:</p>
+        <label for="file-upload" class="upload-button">Upload Trading Data (CSV)</label>
         <input type="file" id="file-upload" accept=".csv">
-        <span id="file-name"></span>
+        <span id="file-name" style="color: #666;">No file selected</span>
+        
+        <div style="margin-top: 15px; padding: 10px; background: #f8f9fa; border-radius: 6px; font-size: 14px;">
+            <strong>Flexible CSV Format Support:</strong><br>
+            • <strong>Required:</strong> Date column (any name containing "date", "time", etc.)<br>
+            • <strong>Required:</strong> Profit/Loss column (any name containing "profit", "loss", "p&l", "pnl", etc.)<br>
+            • <strong>Optional:</strong> Position, Price, Status columns<br>
+            • <strong>Date formats supported:</strong> DD/MM/YYYY, MM/DD/YYYY, YYYY-MM-DD, DD.MM.YYYY, Excel date numbers<br>
+            • <strong>Number formats:</strong> Can include currency symbols ($, £, €) - they'll be removed automatically<br>
+            • The system will automatically detect your column names and date formats<br>
+            • Check browser console (F12) for detailed debugging if upload fails
+        </div>
     </div>
     
     <div class="metrics" id="key-metrics">
@@ -199,6 +210,17 @@
     </div>
 
     <script>
+        // Global error handler
+        window.addEventListener('error', function(e) {
+            console.error('Global error caught:', e.error);
+            console.error('Error details:', {
+                message: e.message,
+                filename: e.filename,
+                lineno: e.lineno,
+                colno: e.colno
+            });
+        });
+
         // Global variables
         let tradeData = [];
         const chartObjects = {
@@ -214,491 +236,1064 @@
         const APRIL_POINTS = 64829;
         const DOLLAR_MULTIPLIER = 0.60;
         
-        // Format currency with $ and commas
-        function formatCurrency(value) {
-            return '$' + parseFloat(value).toFixed(2).replace(/\B(?=(\d{3})+(?!\d))/g, ",");
-        }
-        
-        // Helper function to parse dates in DD/MM/YYYY format
-        function parseDate(dateString) {
-            if (!dateString || typeof dateString !== 'string') return new Date(0);
-            
+        // Safe utility functions
+        function safeParseFloat(value) {
             try {
-                // Check for DD/MM/YYYY format
-                if (dateString.includes('/')) {
-                    const parts = dateString.split('/');
-                    if (parts.length !== 3) return new Date(dateString);
-                    
-                    // Make sure parts are valid numbers
-                    const day = parseInt(parts[0], 10);
-                    const month = parseInt(parts[1], 10) - 1; // Month is 0-based
-                    const year = parseInt(parts[2], 10);
-                    
-                    if (isNaN(day) || isNaN(month) || isNaN(year)) {
-                        return new Date(dateString);
-                    }
-                    
-                    return new Date(year, month, day);
+                if (typeof value === 'number') return value;
+                if (typeof value === 'string') {
+                    const cleaned = value.replace(/[$,£€\s]/g, '').trim();
+                    const parsed = parseFloat(cleaned);
+                    return isNaN(parsed) ? 0 : parsed;
                 }
-                
-                // Try standard date parsing for other formats
-                return new Date(dateString);
-            } catch (error) {
-                console.error("Date parsing error:", error);
-                return new Date(0);
+                return 0;
+            } catch (e) {
+                console.error('Error parsing float:', value, e);
+                return 0;
+            }
+        }
+
+        function safeParseInt(value) {
+            try {
+                const parsed = parseInt(value, 10);
+                return isNaN(parsed) ? 0 : parsed;
+            } catch (e) {
+                console.error('Error parsing int:', value, e);
+                return 0;
             }
         }
         
-        // Show error message
-        function showError(message) {
-            console.error(message);
-            alert("Error: " + message);
+        // Format currency with $ and commas
+        function formatCurrency(value) {
+            try {
+                const num = safeParseFloat(value);
+                return '$' + num.toFixed(2).replace(/\B(?=(\d{3})+(?!\d))/g, ",");
+            } catch (e) {
+                console.error('Error formatting currency:', value, e);
+                return '$0.00';
+            }
         }
         
-        // Initialize dashboard with metrics
+        // Enhanced date parsing function with error handling
+        function parseDate(dateString) {
+            try {
+                if (!dateString) return null;
+                
+                const dateStr = String(dateString).trim();
+                if (dateStr === '') return null;
+                
+                let parsedDate = null;
+                
+                // Format 1: DD/MM/YYYY or DD-MM-YYYY
+                if (dateStr.match(/^\d{1,2}[\/\-]\d{1,2}[\/\-]\d{4}$/)) {
+                    const parts = dateStr.split(/[\/\-]/);
+                    if (parts.length === 3) {
+                        const day = safeParseInt(parts[0]);
+                        const month = safeParseInt(parts[1]) - 1;
+                        const year = safeParseInt(parts[2]);
+                        
+                        if (day > 0 && month >= 0 && year > 1900) {
+                            parsedDate = new Date(year, month, day);
+                        }
+                    }
+                }
+                
+                // Format 2: MM/DD/YYYY (US format)
+                if (!parsedDate && dateStr.match(/^\d{1,2}[\/\-]\d{1,2}[\/\-]\d{4}$/)) {
+                    const parts = dateStr.split(/[\/\-]/);
+                    if (parts.length === 3) {
+                        const month = safeParseInt(parts[0]) - 1;
+                        const day = safeParseInt(parts[1]);
+                        const year = safeParseInt(parts[2]);
+                        
+                        if (day > 0 && month >= 0 && month <= 11 && day <= 31 && year > 1900) {
+                            parsedDate = new Date(year, month, day);
+                        }
+                    }
+                }
+                
+                // Format 3: YYYY-MM-DD (ISO format)
+                if (!parsedDate && dateStr.match(/^\d{4}[\/\-]\d{1,2}[\/\-]\d{1,2}$/)) {
+                    const parts = dateStr.split(/[\/\-]/);
+                    if (parts.length === 3) {
+                        const year = safeParseInt(parts[0]);
+                        const month = safeParseInt(parts[1]) - 1;
+                        const day = safeParseInt(parts[2]);
+                        
+                        if (day > 0 && month >= 0 && year > 1900) {
+                            parsedDate = new Date(year, month, day);
+                        }
+                    }
+                }
+                
+                // Format 4: DD.MM.YYYY (European format)
+                if (!parsedDate && dateStr.match(/^\d{1,2}\.\d{1,2}\.\d{4}$/)) {
+                    const parts = dateStr.split('.');
+                    if (parts.length === 3) {
+                        const day = safeParseInt(parts[0]);
+                        const month = safeParseInt(parts[1]) - 1;
+                        const year = safeParseInt(parts[2]);
+                        
+                        if (day > 0 && month >= 0 && year > 1900) {
+                            parsedDate = new Date(year, month, day);
+                        }
+                    }
+                }
+                
+                // Validate the final date
+                if (parsedDate && !isNaN(parsedDate.getTime())) {
+                    const year = parsedDate.getFullYear();
+                    if (year >= 1900 && year <= 2100) {
+                        return parsedDate;
+                    }
+                }
+                
+                return null;
+                
+            } catch (error) {
+                console.error("Date parsing error:", dateString, error);
+                return null;
+            }
+        }
+        
+        // Show error message with better user feedback
+        function showError(message) {
+            try {
+                console.error("Dashboard Error:", message);
+                
+                const fileNameEl = document.getElementById('file-name');
+                if (fileNameEl) {
+                    fileNameEl.textContent = '❌ Error: ' + message;
+                    fileNameEl.style.color = '#FF3B30';
+                }
+                
+                setTimeout(() => {
+                    alert("Upload Error: " + message);
+                }, 100);
+            } catch (e) {
+                console.error('Error in showError:', e);
+            }
+        }
+        
+        // Initialize dashboard with default metrics
         function initializeDashboard() {
-            // Display metrics using constants
-            displayMetrics();
-            
-            // Initialize charts with empty data
-            createCumulativeChart([]);
-            createMonthlyChart();
-            
-            // Update the trading performance summary
-            updateTradingSummary();
+            try {
+                displayMetrics();
+                createCumulativeChart([]);
+                createMonthlyChart();
+                updateTradingSummary();
+                console.log("Dashboard initialized successfully");
+            } catch (error) {
+                console.error("Error in initializeDashboard:", error);
+                showError("Dashboard initialization failed: " + error.message);
+            }
         }
         
         // Display key metrics at the top of the dashboard
         function displayMetrics() {
-            const container = document.getElementById('key-metrics');
-            if (!container) return;
-            
-            container.innerHTML = '';
-            
-            // Total P/L calculations
-            const totalPoints = MARCH_POINTS + APRIL_POINTS;
-            const totalDollars = totalPoints * DOLLAR_MULTIPLIER;
-            
-            // Win rate and ratio
-            const winRate = (WINNING_TRADES / TOTAL_TRADES) * 100;
-            const winLossRatio = WINNING_TRADES / LOSING_TRADES;
-            
-            // Create metrics to display
-            const metricItems = [
-                { label: 'Total Points', value: totalPoints.toFixed(0), class: 'positive' },
-                { label: 'Total $ Profit', value: formatCurrency(totalDollars), class: 'positive' },
-                { label: 'Total Trades', value: TOTAL_TRADES },
-                { label: 'Win Rate', value: winRate.toFixed(1) + '%' },
-                { label: 'Win/Loss Ratio', value: winLossRatio.toFixed(2) },
-                { label: 'Sharpe Ratio', value: '2.35' } // Hardcoded based on calculation
-            ];
-            
-            // Create metric cards
-            metricItems.forEach(item => {
-                const metricCard = document.createElement('div');
-                metricCard.className = 'metric-card';
+            try {
+                const container = document.getElementById('key-metrics');
+                if (!container) return;
                 
-                const valueEl = document.createElement('div');
-                valueEl.className = 'metric-value';
-                if (item.class) {
-                    valueEl.classList.add(item.class);
-                }
-                valueEl.textContent = item.value;
+                container.innerHTML = '';
                 
-                const labelEl = document.createElement('div');
-                labelEl.className = 'metric-label';
-                labelEl.textContent = item.label;
+                const totalPoints = MARCH_POINTS + APRIL_POINTS;
+                const totalDollars = totalPoints * DOLLAR_MULTIPLIER;
+                const winRate = (WINNING_TRADES / TOTAL_TRADES) * 100;
+                const winLossRatio = WINNING_TRADES / LOSING_TRADES;
                 
-                metricCard.appendChild(valueEl);
-                metricCard.appendChild(labelEl);
-                container.appendChild(metricCard);
-            });
+                const metricItems = [
+                    { label: 'Total Points', value: totalPoints.toFixed(0), class: 'positive' },
+                    { label: 'Total $ Profit', value: formatCurrency(totalDollars), class: 'positive' },
+                    { label: 'Total Trades', value: TOTAL_TRADES },
+                    { label: 'Win Rate', value: winRate.toFixed(1) + '%' },
+                    { label: 'Win/Loss Ratio', value: winLossRatio.toFixed(2) },
+                    { label: 'Sharpe Ratio', value: '2.35' }
+                ];
+                
+                metricItems.forEach(item => {
+                    const metricCard = document.createElement('div');
+                    metricCard.className = 'metric-card';
+                    
+                    const valueEl = document.createElement('div');
+                    valueEl.className = 'metric-value';
+                    if (item.class) {
+                        valueEl.classList.add(item.class);
+                    }
+                    valueEl.textContent = item.value;
+                    
+                    const labelEl = document.createElement('div');
+                    labelEl.className = 'metric-label';
+                    labelEl.textContent = item.label;
+                    
+                    metricCard.appendChild(valueEl);
+                    metricCard.appendChild(labelEl);
+                    container.appendChild(metricCard);
+                });
+            } catch (e) {
+                console.error('Error in displayMetrics:', e);
+            }
         }
         
         // Update the trading performance summary panel
         function updateTradingSummary() {
-            const totalPoints = MARCH_POINTS + APRIL_POINTS;
-            const totalDollars = totalPoints * DOLLAR_MULTIPLIER;
-            
-            // Update summary elements
-            document.getElementById('win-rate').textContent = (WINNING_TRADES / TOTAL_TRADES * 100).toFixed(1) + '%';
-            document.getElementById('total-trades').textContent = TOTAL_TRADES;
-            document.getElementById('profitable-trades').textContent = WINNING_TRADES;
-            document.getElementById('losing-trades').textContent = LOSING_TRADES;
-            document.getElementById('total-profit').textContent = formatCurrency(totalDollars);
-            
-            // Update header summary
-            document.querySelector('.profit-highlight').textContent = formatCurrency(totalDollars);
+            try {
+                const totalPoints = MARCH_POINTS + APRIL_POINTS;
+                const totalDollars = totalPoints * DOLLAR_MULTIPLIER;
+                
+                const elements = {
+                    'win-rate': (WINNING_TRADES / TOTAL_TRADES * 100).toFixed(1) + '%',
+                    'total-trades': TOTAL_TRADES,
+                    'profitable-trades': WINNING_TRADES,
+                    'losing-trades': LOSING_TRADES,
+                    'total-profit': formatCurrency(totalDollars)
+                };
+                
+                Object.keys(elements).forEach(id => {
+                    const el = document.getElementById(id);
+                    if (el) el.textContent = elements[id];
+                });
+                
+                const profitEl = document.querySelector('.profit-highlight');
+                if (profitEl) profitEl.textContent = formatCurrency(totalDollars);
+            } catch (e) {
+                console.error('Error in updateTradingSummary:', e);
+            }
         }
         
         // Create the monthly performance chart
         function createMonthlyChart() {
-            const canvas = document.getElementById('monthly-chart');
-            if (!canvas) return;
-            
-            // Monthly data
-            const months = ['Mar 2025', 'Apr 2025'];
-            const pointsValues = [MARCH_POINTS, APRIL_POINTS];
-            const dollarValues = [MARCH_POINTS * DOLLAR_MULTIPLIER, APRIL_POINTS * DOLLAR_MULTIPLIER];
-            
-            // Destroy existing chart if needed
-            if (chartObjects.monthly) {
-                chartObjects.monthly.destroy();
-            }
-            
-            // Create new chart
-            const ctx = canvas.getContext('2d');
-            chartObjects.monthly = new Chart(ctx, {
-                type: 'bar',
-                data: {
-                    labels: months,
-                    datasets: [
-                        {
-                            label: 'Monthly Points',
-                            data: pointsValues,
-                            backgroundColor: ['rgba(52, 199, 89, 0.7)', 'rgba(52, 199, 89, 0.7)'],
-                            borderColor: ['#34C759', '#34C759'],
-                            borderWidth: 1,
-                            yAxisID: 'y'
-                        },
-                        {
-                            label: 'Monthly $ Profit',
-                            data: dollarValues,
-                            backgroundColor: ['rgba(0, 113, 227, 0.7)', 'rgba(0, 113, 227, 0.7)'],
-                            borderColor: ['#0071e3', '#0071e3'],
-                            borderWidth: 1,
-                            yAxisID: 'y1'
-                        }
-                    ]
-                },
-                options: {
-                    responsive: true,
-                    maintainAspectRatio: false,
-                    scales: {
-                        y: {
-                            type: 'linear',
-                            display: true,
-                            position: 'left',
-                            title: {
-                                display: true,
-                                text: 'Points'
-                            }
-                        },
-                        y1: {
-                            type: 'linear',
-                            display: true,
-                            position: 'right',
-                            title: {
-                                display: true,
-                                text: 'Dollars ($)'
+            try {
+                const canvas = document.getElementById('monthly-chart');
+                if (!canvas) return;
+                
+                const months = ['Mar 2025', 'Apr 2025'];
+                const pointsValues = [MARCH_POINTS, APRIL_POINTS];
+                const dollarValues = [MARCH_POINTS * DOLLAR_MULTIPLIER, APRIL_POINTS * DOLLAR_MULTIPLIER];
+                
+                if (chartObjects.monthly) {
+                    chartObjects.monthly.destroy();
+                    chartObjects.monthly = null;
+                }
+                
+                const ctx = canvas.getContext('2d');
+                chartObjects.monthly = new Chart(ctx, {
+                    type: 'bar',
+                    data: {
+                        labels: months,
+                        datasets: [
+                            {
+                                label: 'Monthly Points',
+                                data: pointsValues,
+                                backgroundColor: ['rgba(52, 199, 89, 0.7)', 'rgba(52, 199, 89, 0.7)'],
+                                borderColor: ['#34C759', '#34C759'],
+                                borderWidth: 1,
+                                yAxisID: 'y'
                             },
-                            grid: {
-                                drawOnChartArea: false
+                            {
+                                label: 'Monthly $ Profit',
+                                data: dollarValues,
+                                backgroundColor: ['rgba(0, 113, 227, 0.7)', 'rgba(0, 113, 227, 0.7)'],
+                                borderColor: ['#0071e3', '#0071e3'],
+                                borderWidth: 1,
+                                yAxisID: 'y1'
                             }
-                        }
+                        ]
                     },
-                    plugins: {
-                        tooltip: {
-                            callbacks: {
-                                label: function(context) {
-                                    const datasetLabel = context.dataset.label || '';
-                                    const value = context.parsed.y;
-                                    if (datasetLabel.includes('$')) {
-                                        return datasetLabel + ': $' + value.toFixed(2);
-                                    } else {
-                                        return datasetLabel + ': ' + value.toFixed(0);
+                    options: {
+                        responsive: true,
+                        maintainAspectRatio: false,
+                        scales: {
+                            y: {
+                                type: 'linear',
+                                display: true,
+                                position: 'left',
+                                title: { display: true, text: 'Points' }
+                            },
+                            y1: {
+                                type: 'linear',
+                                display: true,
+                                position: 'right',
+                                title: { display: true, text: 'Dollars ($)' },
+                                grid: { drawOnChartArea: false }
+                            }
+                        },
+                        plugins: {
+                            tooltip: {
+                                callbacks: {
+                                    label: function(context) {
+                                        const label = context.dataset.label || '';
+                                        const value = context.parsed.y;
+                                        return label.includes('$') ? 
+                                            label + ': $' + value.toFixed(2) : 
+                                            label + ': ' + value.toFixed(0);
                                     }
                                 }
                             }
                         }
                     }
+                });
+            } catch (e) {
+                console.error('Error in createMonthlyChart:', e);
+            }
+        }
+        
+        // Create monthly chart from actual uploaded data
+        function createMonthlyChartFromData(data) {
+            try {
+                if (!data || data.length === 0) return;
+                
+                const canvas = document.getElementById('monthly-chart');
+                if (!canvas) return;
+                
+                const monthlyData = {};
+                
+                data.forEach(row => {
+                    if (!row || !row.Date || typeof row["Profit/Loss"] !== 'number') return;
+                    
+                    const date = parseDate(row.Date);
+                    if (!date) return;
+                    
+                    const monthYear = `${date.getFullYear()}-${(date.getMonth() + 1).toString().padStart(2, '0')}`;
+                    
+                    if (!monthlyData[monthYear]) {
+                        monthlyData[monthYear] = 0;
+                    }
+                    
+                    monthlyData[monthYear] += row["Profit/Loss"];
+                });
+                
+                const months = Object.keys(monthlyData).sort();
+                const pointsValues = months.map(month => monthlyData[month]);
+                const dollarValues = pointsValues.map(points => points * DOLLAR_MULTIPLIER);
+                
+                const displayLabels = months.map(month => {
+                    const [year, monthNum] = month.split('-');
+                    const monthNames = ['Jan', 'Feb', 'Mar', 'Apr', 'May', 'Jun', 'Jul', 'Aug', 'Sep', 'Oct', 'Nov', 'Dec'];
+                    return `${monthNames[parseInt(monthNum)-1]} ${year}`;
+                });
+                
+                if (chartObjects.monthly) {
+                    chartObjects.monthly.destroy();
+                    chartObjects.monthly = null;
                 }
-            });
+                
+                const ctx = canvas.getContext('2d');
+                chartObjects.monthly = new Chart(ctx, {
+                    type: 'bar',
+                    data: {
+                        labels: displayLabels,
+                        datasets: [
+                            {
+                                label: 'Monthly Points',
+                                data: pointsValues,
+                                backgroundColor: pointsValues.map(val => val >= 0 ? 'rgba(52, 199, 89, 0.7)' : 'rgba(255, 59, 48, 0.7)'),
+                                borderColor: pointsValues.map(val => val >= 0 ? '#34C759' : '#FF3B30'),
+                                borderWidth: 1,
+                                yAxisID: 'y'
+                            },
+                            {
+                                label: 'Monthly $ Profit',
+                                data: dollarValues,
+                                backgroundColor: dollarValues.map(val => val >= 0 ? 'rgba(0, 113, 227, 0.7)' : 'rgba(255, 149, 0, 0.7)'),
+                                borderColor: dollarValues.map(val => val >= 0 ? '#0071e3' : '#FF9500'),
+                                borderWidth: 1,
+                                yAxisID: 'y1'
+                            }
+                        ]
+                    },
+                    options: {
+                        responsive: true,
+                        maintainAspectRatio: false,
+                        scales: {
+                            y: {
+                                type: 'linear',
+                                display: true,
+                                position: 'left',
+                                title: { display: true, text: 'Points' }
+                            },
+                            y1: {
+                                type: 'linear',
+                                display: true,
+                                position: 'right',
+                                title: { display: true, text: 'Dollars ($)' },
+                                grid: { drawOnChartArea: false }
+                            }
+                        },
+                        plugins: {
+                            tooltip: {
+                                callbacks: {
+                                    label: function(context) {
+                                        const label = context.dataset.label || '';
+                                        const value = context.parsed.y;
+                                        return label.includes('$') ? 
+                                            label + ': $' + value.toFixed(2) : 
+                                            label + ': ' + value.toFixed(0);
+                                    }
+                                }
+                            }
+                        }
+                    }
+                });
+            } catch (e) {
+                console.error('Error in createMonthlyChartFromData:', e);
+            }
         }
         
         // Create cumulative performance chart
         function createCumulativeChart(data) {
-            const canvas = document.getElementById('cumulative-chart');
-            if (!canvas) return;
-            
-            // Create sample cumulative data if no data provided
-            let dates = [];
-            let cumulativePoints = [];
-            let cumulativeDollars = [];
-            
-            if (data.length === 0) {
-                // Create sample data based on March and April performance
-                const marchDays = 31; // March has 31 days
-                const aprilDays = 30; // April has 30 days
+            try {
+                const canvas = document.getElementById('cumulative-chart');
+                if (!canvas) return;
                 
-                const marchPointsPerDay = MARCH_POINTS / marchDays;
-                const aprilPointsPerDay = APRIL_POINTS / aprilDays;
+                let dates = [];
+                let cumulativePoints = [];
+                let cumulativeDollars = [];
                 
-                let runningTotal = 0;
-                
-                // March data
-                for (let i = 1; i <= marchDays; i++) {
-                    dates.push(`${i.toString().padStart(2, '0')}/03/2025`);
-                    runningTotal += marchPointsPerDay;
-                    cumulativePoints.push(runningTotal);
-                    cumulativeDollars.push(runningTotal * DOLLAR_MULTIPLIER);
+                if (!data || data.length === 0) {
+                    // Create sample data
+                    const marchDays = 31;
+                    const aprilDays = 30;
+                    const marchPointsPerDay = MARCH_POINTS / marchDays;
+                    const aprilPointsPerDay = APRIL_POINTS / aprilDays;
+                    
+                    let runningTotal = 0;
+                    
+                    for (let i = 1; i <= marchDays; i++) {
+                        dates.push(`${i.toString().padStart(2, '0')}/03/2025`);
+                        runningTotal += marchPointsPerDay;
+                        cumulativePoints.push(runningTotal);
+                        cumulativeDollars.push(runningTotal * DOLLAR_MULTIPLIER);
+                    }
+                    
+                    for (let i = 1; i <= aprilDays; i++) {
+                        dates.push(`${i.toString().padStart(2, '0')}/04/2025`);
+                        runningTotal += aprilPointsPerDay;
+                        cumulativePoints.push(runningTotal);
+                        cumulativeDollars.push(runningTotal * DOLLAR_MULTIPLIER);
+                    }
+                } else {
+                    dates = data.map(d => d.Date || '');
+                    let runningTotal = 0;
+                    cumulativePoints = data.map(d => {
+                        runningTotal += (d["Profit/Loss"] || 0);
+                        return runningTotal;
+                    });
+                    cumulativeDollars = cumulativePoints.map(val => val * DOLLAR_MULTIPLIER);
                 }
                 
-                // April data
-                for (let i = 1; i <= aprilDays; i++) {
-                    dates.push(`${i.toString().padStart(2, '0')}/04/2025`);
-                    runningTotal += aprilPointsPerDay;
-                    cumulativePoints.push(runningTotal);
-                    cumulativeDollars.push(runningTotal * DOLLAR_MULTIPLIER);
+                if (chartObjects.cumulative) {
+                    chartObjects.cumulative.destroy();
+                    chartObjects.cumulative = null;
                 }
-            } else {
-                // Use real data if provided
-                dates = data.map(d => d.Date);
-                let runningTotal = 0;
-                cumulativePoints = data.map(d => {
-                    runningTotal += (d["Profit/Loss"] || 0);
-                    return runningTotal;
-                });
-                cumulativeDollars = cumulativePoints.map(val => val * DOLLAR_MULTIPLIER);
-            }
-            
-            // Destroy previous chart if it exists
-            if (chartObjects.cumulative) {
-                chartObjects.cumulative.destroy();
-            }
-            
-            // Create new chart
-            const ctx = canvas.getContext('2d');
-            chartObjects.cumulative = new Chart(ctx, {
-                type: 'line',
-                data: {
-                    labels: dates,
-                    datasets: [
-                        {
-                            label: 'Cumulative Points',
-                            data: cumulativePoints,
-                            borderColor: '#0071e3',
-                            backgroundColor: 'rgba(0, 113, 227, 0.1)',
-                            fill: true,
-                            tension: 0.1,
-                            yAxisID: 'y'
-                        },
-                        {
-                            label: 'Cumulative $ Profit',
-                            data: cumulativeDollars,
-                            borderColor: '#34C759',
-                            backgroundColor: 'rgba(52, 199, 89, 0.1)',
-                            borderDash: [5, 5],
-                            fill: false,
-                            tension: 0.1,
-                            yAxisID: 'y1'
-                        }
-                    ]
-                },
-                options: {
-                    responsive: true,
-                    maintainAspectRatio: false,
-                    scales: {
-                        x: {
-                            ticks: {
-                                maxTicksLimit: 10
-                            }
-                        },
-                        y: {
-                            type: 'linear',
-                            display: true,
-                            position: 'left',
-                            title: {
-                                display: true,
-                                text: 'Points'
-                            }
-                        },
-                        y1: {
-                            type: 'linear',
-                            display: true,
-                            position: 'right',
-                            title: {
-                                display: true,
-                                text: 'Dollars ($)'
+                
+                const ctx = canvas.getContext('2d');
+                chartObjects.cumulative = new Chart(ctx, {
+                    type: 'line',
+                    data: {
+                        labels: dates,
+                        datasets: [
+                            {
+                                label: 'Cumulative Points',
+                                data: cumulativePoints,
+                                borderColor: '#0071e3',
+                                backgroundColor: 'rgba(0, 113, 227, 0.1)',
+                                fill: true,
+                                tension: 0.1,
+                                yAxisID: 'y'
                             },
-                            grid: {
-                                drawOnChartArea: false
+                            {
+                                label: 'Cumulative $ Profit',
+                                data: cumulativeDollars,
+                                borderColor: '#34C759',
+                                backgroundColor: 'rgba(52, 199, 89, 0.1)',
+                                borderDash: [5, 5],
+                                fill: false,
+                                tension: 0.1,
+                                yAxisID: 'y1'
                             }
-                        }
+                        ]
                     },
-                    plugins: {
-                        tooltip: {
-                            callbacks: {
-                                label: function(context) {
-                                    const datasetLabel = context.dataset.label || '';
-                                    const value = context.parsed.y;
-                                    if (datasetLabel.includes('$')) {
-                                        return datasetLabel + ': $' + value.toFixed(2);
-                                    } else {
-                                        return datasetLabel + ': ' + value.toFixed(0);
+                    options: {
+                        responsive: true,
+                        maintainAspectRatio: false,
+                        scales: {
+                            x: { ticks: { maxTicksLimit: 10 } },
+                            y: {
+                                type: 'linear',
+                                display: true,
+                                position: 'left',
+                                title: { display: true, text: 'Points' }
+                            },
+                            y1: {
+                                type: 'linear',
+                                display: true,
+                                position: 'right',
+                                title: { display: true, text: 'Dollars ($)' },
+                                grid: { drawOnChartArea: false }
+                            }
+                        },
+                        plugins: {
+                            tooltip: {
+                                callbacks: {
+                                    label: function(context) {
+                                        const label = context.dataset.label || '';
+                                        const value = context.parsed.y;
+                                        return label.includes('$') ? 
+                                            label + ': $' + value.toFixed(2) : 
+                                            label + ': ' + value.toFixed(0);
                                     }
                                 }
                             }
                         }
                     }
-                }
-            });
+                });
+            } catch (e) {
+                console.error('Error in createCumulativeChart:', e);
+            }
         }
         
         // Update recent trades table
         function updateRecentTradesTable(data) {
-            const tableBody = document.querySelector('#recent-trades tbody');
-            if (!tableBody) return;
-            
-            tableBody.innerHTML = '';
-            
-            // Use mock data if no real data provided
-            if (!data || data.length === 0) {
-                // Sample trade data with focus on April
-                const sampleTrades = [
-                    { Date: '30/04/2025', Possition: 'Sell', Price: 85389, "Profit/Loss": 521, Return: ' Profit ' },
-                    { Date: '29/04/2025', Possition: 'Buy', Price: 85161, "Profit/Loss": 228, Return: ' Profit ' },
-                    { Date: '28/04/2025', Possition: 'Buy', Price: 84744, "Profit/Loss": 417, Return: ' Profit ' },
-                    { Date: '27/04/2025', Possition: 'Sell', Price: 84106, "Profit/Loss": 638, Return: ' Profit ' },
-                    { Date: '26/04/2025', Possition: 'Buy', Price: 83811, "Profit/Loss": 295, Return: ' Profit ' },
-                    { Date: '25/04/2025', Possition: 'Buy', Price: 83233, "Profit/Loss": 578, Return: ' Profit ' },
-                    { Date: '24/04/2025', Possition: 'Sell', Price: 82308, "Profit/Loss": 925, Return: ' Profit ' },
-                    { Date: '23/04/2025', Possition: 'Buy', Price: 80228, "Profit/Loss": 2080, Return: ' Profit ' },
-                    { Date: '22/04/2025', Possition: 'Sell', Price: 81574, "Profit/Loss": -1346, Return: ' loss ' },
-                    { Date: '21/04/2025', Possition: 'Sell', Price: 82616, "Profit/Loss": -1042, Return: ' loss ' },
-                    { Date: '20/04/2025', Possition: 'Buy', Price: 86088, "Profit/Loss": 3472, Return: ' Profit ' },
-                    { Date: '19/04/2025', Possition: 'Buy', Price: 87824, "Profit/Loss": 1736, Return: ' Profit ' },
-                    { Date: '18/04/2025', Possition: 'Buy', Price: 88692, "Profit/Loss": 868, Return: ' Profit ' },
-                    { Date: '17/04/2025', Possition: 'Buy', Price: 89126, "Profit/Loss": 434, Return: ' Profit ' },
-                    { Date: '16/04/2025', Possition: 'Take', Price: 89560, "Profit/Loss": 0, Return: ' Profit ' },
-                    { Date: '15/04/2025', Possition: 'Sell', Price: 88586, "Profit/Loss": 974, Return: ' Profit ' },
-                    { Date: '14/04/2025', Possition: 'Sell', Price: 87973, "Profit/Loss": 613, Return: ' Profit ' },
-                    { Date: '13/04/2025', Possition: 'Buy', Price: 87611, "Profit/Loss": 362, Return: ' Profit ' },
-                    { Date: '12/04/2025', Possition: 'Sell', Price: 86769, "Profit/Loss": 842, Return: ' Profit ' },
-                    { Date: '11/04/2025', Possition: 'Sell', Price: 86297, "Profit/Loss": 472, Return: ' Profit ' }
-                ];
-                data = sampleTrades;
+            try {
+                const tableBody = document.querySelector('#recent-trades tbody');
+                if (!tableBody) return;
+                
+                tableBody.innerHTML = '';
+                
+                if (!data || data.length === 0) {
+                    const sampleTrades = [
+                        { Date: '30/04/2025', Possition: 'Sell', Price: 85389, "Profit/Loss": 521, Return: ' Profit ' },
+                        { Date: '29/04/2025', Possition: 'Buy', Price: 85161, "Profit/Loss": 228, Return: ' Profit ' },
+                        { Date: '28/04/2025', Possition: 'Buy', Price: 84744, "Profit/Loss": 417, Return: ' Profit ' },
+                        { Date: '27/04/2025', Possition: 'Sell', Price: 84106, "Profit/Loss": 638, Return: ' Profit ' },
+                        { Date: '26/04/2025', Possition: 'Buy', Price: 83811, "Profit/Loss": 295, Return: ' Profit ' },
+                        { Date: '25/04/2025', Possition: 'Buy', Price: 83233, "Profit/Loss": 578, Return: ' Profit ' },
+                        { Date: '24/04/2025', Possition: 'Sell', Price: 82308, "Profit/Loss": 925, Return: ' Profit ' },
+                        { Date: '23/04/2025', Possition: 'Buy', Price: 80228, "Profit/Loss": 2080, Return: ' Profit ' },
+                        { Date: '22/04/2025', Possition: 'Sell', Price: 81574, "Profit/Loss": -1346, Return: ' loss ' },
+                        { Date: '21/04/2025', Possition: 'Sell', Price: 82616, "Profit/Loss": -1042, Return: ' loss ' }
+                    ];
+                    data = sampleTrades;
+                }
+                
+                const recentTrades = data.slice(0, 20);
+                
+                recentTrades.forEach(trade => {
+                    try {
+                        const row = document.createElement('tr');
+                        
+                        // Date
+                        const dateCell = document.createElement('td');
+                        dateCell.textContent = trade.Date || 'N/A';
+                        row.appendChild(dateCell);
+                        
+                        // Position
+                        const positionCell = document.createElement('td');
+                        positionCell.textContent = trade.Possition || 'N/A';
+                        row.appendChild(positionCell);
+                        
+                        // Price
+                        const priceCell = document.createElement('td');
+                        const price = safeParseFloat(trade.Price);
+                        priceCell.textContent = price > 0 ? price.toFixed(2) : 'N/A';
+                        row.appendChild(priceCell);
+                        
+                        // P/L Points
+                        const plCell = document.createElement('td');
+                        const profitLoss = safeParseFloat(trade["Profit/Loss"]);
+                        plCell.textContent = profitLoss.toFixed(0);
+                        plCell.className = profitLoss >= 0 ? 'positive' : 'negative';
+                        row.appendChild(plCell);
+                        
+                        // P/L Dollars
+                        const plDollarsCell = document.createElement('td');
+                        const dollarValue = profitLoss * DOLLAR_MULTIPLIER;
+                        plDollarsCell.textContent = formatCurrency(dollarValue);
+                        plDollarsCell.className = dollarValue >= 0 ? 'positive' : 'negative';
+                        row.appendChild(plDollarsCell);
+                        
+                        // Status
+                        const statusCell = document.createElement('td');
+                        const returnValue = trade.Return || (profitLoss >= 0 ? ' Profit ' : ' loss ');
+                        statusCell.textContent = String(returnValue).trim();
+                        statusCell.className = String(returnValue).includes("Profit") ? 'positive' : 'negative';
+                        row.appendChild(statusCell);
+                        
+                        tableBody.appendChild(row);
+                    } catch (e) {
+                        console.error('Error creating trade row:', trade, e);
+                    }
+                });
+            } catch (e) {
+                console.error('Error in updateRecentTradesTable:', e);
             }
-            
-            // Get up to 20 most recent trades
-            const recentTrades = data.slice(0, 20);
-            
-            recentTrades.forEach(trade => {
-                const row = document.createElement('tr');
-                
-                // Date
-                const dateCell = document.createElement('td');
-                dateCell.textContent = trade.Date || 'N/A';
-                row.appendChild(dateCell);
-                
-                // Position
-                const positionCell = document.createElement('td');
-                positionCell.textContent = trade.Possition || 'N/A';
-                row.appendChild(positionCell);
-                
-                // Price
-                const priceCell = document.createElement('td');
-                priceCell.textContent = typeof trade.Price === 'number' ? trade.Price.toFixed(2) : 'N/A';
-                row.appendChild(priceCell);
-                
-                // P/L Points
-                const plCell = document.createElement('td');
-                if (typeof trade["Profit/Loss"] === 'number') {
-                    plCell.textContent = trade["Profit/Loss"].toFixed(0);
-                    plCell.className = trade["Profit/Loss"] >= 0 ? 'positive' : 'negative';
-                } else {
-                    plCell.textContent = 'N/A';
+        }
+        
+        // Calculate metrics from actual uploaded data
+        function calculateActualMetrics(data) {
+            try {
+                if (!data || data.length === 0) {
+                    return {
+                        totalTrades: TOTAL_TRADES,
+                        winningTrades: WINNING_TRADES,
+                        losingTrades: LOSING_TRADES,
+                        totalPoints: MARCH_POINTS + APRIL_POINTS,
+                        totalDollars: (MARCH_POINTS + APRIL_POINTS) * DOLLAR_MULTIPLIER,
+                        winRate: (WINNING_TRADES / TOTAL_TRADES) * 100,
+                        winLossRatio: WINNING_TRADES / LOSING_TRADES,
+                        sharpeRatio: 2.35
+                    };
                 }
-                row.appendChild(plCell);
                 
-                // P/L Dollars
-                const plDollarsCell = document.createElement('td');
-                if (typeof trade["Profit/Loss"] === 'number') {
-                    const dollarValue = trade["Profit/Loss"] * DOLLAR_MULTIPLIER;
-                    plDollarsCell.textContent = formatCurrency(dollarValue);
-                    plDollarsCell.className = dollarValue >= 0 ? 'positive' : 'negative';
-                } else {
-                    plDollarsCell.textContent = 'N/A';
+                const totalTrades = data.length;
+                
+                const winningTrades = data.filter(row => {
+                    const pl = safeParseFloat(row["Profit/Loss"]);
+                    const returnStr = String(row.Return || '');
+                    return pl > 0 || returnStr.includes("Profit");
+                }).length;
+                
+                const losingTrades = data.filter(row => {
+                    const pl = safeParseFloat(row["Profit/Loss"]);
+                    const returnStr = String(row.Return || '');
+                    return pl < 0 || returnStr.includes("loss");
+                }).length;
+                
+                const totalPoints = data.reduce((sum, row) => {
+                    return sum + safeParseFloat(row["Profit/Loss"]);
+                }, 0);
+                
+                const totalDollars = totalPoints * DOLLAR_MULTIPLIER;
+                const winRate = totalTrades > 0 ? (winningTrades / totalTrades) * 100 : 0;
+                const winLossRatio = losingTrades > 0 ? winningTrades / losingTrades : winningTrades;
+                
+                // Calculate Sharpe ratio
+                const returns = data.map(row => safeParseFloat(row["Profit/Loss"]));
+                const avgReturn = totalPoints / (returns.length || 1);
+                const variance = returns.reduce((sum, val) => sum + Math.pow((val - avgReturn), 2), 0) / (returns.length || 1);
+                const stdDev = Math.sqrt(variance || 0);
+                const sharpeRatio = stdDev !== 0 ? avgReturn / stdDev * Math.sqrt(252) : 0;
+                
+                return {
+                    totalTrades,
+                    winningTrades,
+                    losingTrades,
+                    totalPoints,
+                    totalDollars,
+                    winRate,
+                    winLossRatio,
+                    sharpeRatio: isNaN(sharpeRatio) ? 0 : sharpeRatio
+                };
+            } catch (e) {
+                console.error('Error in calculateActualMetrics:', e);
+                return {
+                    totalTrades: 0,
+                    winningTrades: 0,
+                    losingTrades: 0,
+                    totalPoints: 0,
+                    totalDollars: 0,
+                    winRate: 0,
+                    winLossRatio: 0,
+                    sharpeRatio: 0
+                };
+            }
+        }
+        
+        // Update all metrics displays with new data
+        function updateAllMetrics(data) {
+            try {
+                const metrics = calculateActualMetrics(data);
+                displayMetricsFromData(metrics);
+                updateTradingSummaryFromData(metrics);
+                updateHeaderSummaryFromData(metrics);
+            } catch (e) {
+                console.error('Error in updateAllMetrics:', e);
+            }
+        }
+        
+        // Display metrics using calculated data
+        function displayMetricsFromData(metrics) {
+            try {
+                const container = document.getElementById('key-metrics');
+                if (!container) return;
+                
+                container.innerHTML = '';
+                
+                const metricItems = [
+                    { label: 'Total Points', value: metrics.totalPoints.toFixed(0), class: metrics.totalPoints >= 0 ? 'positive' : 'negative' },
+                    { label: 'Total $ Profit', value: formatCurrency(metrics.totalDollars), class: metrics.totalDollars >= 0 ? 'positive' : 'negative' },
+                    { label: 'Total Trades', value: metrics.totalTrades },
+                    { label: 'Win Rate', value: metrics.winRate.toFixed(1) + '%' },
+                    { label: 'Win/Loss Ratio', value: metrics.winLossRatio.toFixed(2) },
+                    { label: 'Sharpe Ratio', value: metrics.sharpeRatio.toFixed(2) }
+                ];
+                
+                metricItems.forEach(item => {
+                    const metricCard = document.createElement('div');
+                    metricCard.className = 'metric-card';
+                    
+                    const valueEl = document.createElement('div');
+                    valueEl.className = 'metric-value';
+                    if (item.class) {
+                        valueEl.classList.add(item.class);
+                    }
+                    valueEl.textContent = item.value;
+                    
+                    const labelEl = document.createElement('div');
+                    labelEl.className = 'metric-label';
+                    labelEl.textContent = item.label;
+                    
+                    metricCard.appendChild(valueEl);
+                    metricCard.appendChild(labelEl);
+                    container.appendChild(metricCard);
+                });
+            } catch (e) {
+                console.error('Error in displayMetricsFromData:', e);
+            }
+        }
+        
+        // Update trading performance summary with calculated data
+        function updateTradingSummaryFromData(metrics) {
+            try {
+                const elements = {
+                    'win-rate': metrics.winRate.toFixed(1) + '%',
+                    'total-trades': metrics.totalTrades,
+                    'profitable-trades': metrics.winningTrades,
+                    'losing-trades': metrics.losingTrades,
+                    'total-profit': formatCurrency(metrics.totalDollars)
+                };
+                
+                Object.keys(elements).forEach(id => {
+                    const el = document.getElementById(id);
+                    if (el) el.textContent = elements[id];
+                });
+                
+                const profitEl = document.querySelector('.profit-highlight');
+                if (profitEl) profitEl.textContent = formatCurrency(metrics.totalDollars);
+            } catch (e) {
+                console.error('Error in updateTradingSummaryFromData:', e);
+            }
+        }
+        
+        // Update header summary with calculated data
+        function updateHeaderSummaryFromData(metrics) {
+            try {
+                const profitEl = document.querySelector('.profit-highlight');
+                if (profitEl) profitEl.textContent = formatCurrency(metrics.totalDollars);
+                
+                const monthlyBreakdown = calculateMonthlyBreakdown(tradeData);
+                const monthlyBreakdownElement = document.getElementById('monthly-breakdown');
+                
+                if (monthlyBreakdownElement && monthlyBreakdown) {
+                    monthlyBreakdownElement.innerHTML = `
+                        <span style="margin-right: 20px;">${monthlyBreakdown.first.name}: ${monthlyBreakdown.first.points.toLocaleString()} points (${formatCurrency(monthlyBreakdown.first.dollars)})</span>
+                        <span>${monthlyBreakdown.last.name}: ${monthlyBreakdown.last.points.toLocaleString()} points (${formatCurrency(monthlyBreakdown.last.dollars)})</span>
+                    `;
                 }
-                row.appendChild(plDollarsCell);
+            } catch (e) {
+                console.error('Error in updateHeaderSummaryFromData:', e);
+            }
+        }
+        
+        // Calculate monthly breakdown from actual data
+        function calculateMonthlyBreakdown(data) {
+            try {
+                if (!data || data.length === 0) return null;
                 
-                // Status
-                const statusCell = document.createElement('td');
-                if (trade.Return && typeof trade.Return === 'string') {
-                    statusCell.textContent = trade.Return.trim();
-                    statusCell.className = trade.Return.includes("Profit") ? 'positive' : 'negative';
-                } else {
-                    statusCell.textContent = 'N/A';
+                const monthly = {};
+                
+                data.forEach(row => {
+                    if (!row || !row.Date || typeof row["Profit/Loss"] !== 'number') return;
+                    
+                    const date = parseDate(row.Date);
+                    if (!date) return;
+                    
+                    const monthYear = `${date.getFullYear()}-${(date.getMonth() + 1).toString().padStart(2, '0')}`;
+                    
+                    if (!monthly[monthYear]) {
+                        monthly[monthYear] = 0;
+                    }
+                    
+                    monthly[monthYear] += row["Profit/Loss"];
+                });
+                
+                const months = Object.keys(monthly).sort();
+                if (months.length >= 1) {
+                    const firstMonth = months[0];
+                    const lastMonth = months[months.length - 1];
+                    
+                    const getMonthName = (monthKey) => {
+                        const [year, month] = monthKey.split('-');
+                        const monthNames = ['Jan', 'Feb', 'Mar', 'Apr', 'May', 'Jun', 'Jul', 'Aug', 'Sep', 'Oct', 'Nov', 'Dec'];
+                        const monthIndex = parseInt(month) - 1;
+                        return `${monthNames[monthIndex]} ${year}`;
+                    };
+                    
+                    return {
+                        first: {
+                            name: getMonthName(firstMonth),
+                            points: monthly[firstMonth],
+                            dollars: monthly[firstMonth] * DOLLAR_MULTIPLIER
+                        },
+                        last: {
+                            name: getMonthName(lastMonth),
+                            points: monthly[lastMonth],
+                            dollars: monthly[lastMonth] * DOLLAR_MULTIPLIER
+                        }
+                    };
                 }
-                row.appendChild(statusCell);
                 
-                tableBody.appendChild(row);
-            });
+                return null;
+            } catch (e) {
+                console.error('Error in calculateMonthlyBreakdown:', e);
+                return null;
+            }
+        }
+        
+        // Flexible column finder
+        function findColumns(headers) {
+            try {
+                const columnMap = {
+                    date: null,
+                    profitLoss: null,
+                    position: null,
+                    price: null,
+                    return: null
+                };
+                
+                const normalizedHeaders = headers.map(h => h ? String(h).toLowerCase().trim() : '');
+                
+                // Find date column
+                const datePatterns = ['date', 'time', 'timestamp', 'day'];
+                for (let i = 0; i < normalizedHeaders.length; i++) {
+                    const header = normalizedHeaders[i];
+                    if (datePatterns.some(pattern => header.includes(pattern))) {
+                        columnMap.date = headers[i];
+                        break;
+                    }
+                }
+                
+                // Find profit/loss column
+                const plPatterns = ['profit', 'loss', 'p&l', 'pnl', 'p/l', 'pl', 'gain'];
+                for (let i = 0; i < normalizedHeaders.length; i++) {
+                    const header = normalizedHeaders[i];
+                    if (plPatterns.some(pattern => header.includes(pattern))) {
+                        columnMap.profitLoss = headers[i];
+                        break;
+                    }
+                }
+                
+                // Find position column
+                const positionPatterns = ['position', 'possition', 'type', 'side', 'action'];
+                for (let i = 0; i < normalizedHeaders.length; i++) {
+                    const header = normalizedHeaders[i];
+                    if (positionPatterns.some(pattern => header.includes(pattern))) {
+                        columnMap.position = headers[i];
+                        break;
+                    }
+                }
+                
+                // Find price column
+                const pricePatterns = ['price', 'entry', 'exit', 'value', 'cost'];
+                for (let i = 0; i < normalizedHeaders.length; i++) {
+                    const header = normalizedHeaders[i];
+                    if (pricePatterns.some(pattern => header.includes(pattern))) {
+                        columnMap.price = headers[i];
+                        break;
+                    }
+                }
+                
+                // Find return/status column
+                const returnPatterns = ['return', 'status', 'result', 'outcome', 'win'];
+                for (let i = 0; i < normalizedHeaders.length; i++) {
+                    const header = normalizedHeaders[i];
+                    if (returnPatterns.some(pattern => header.includes(pattern))) {
+                        columnMap.return = headers[i];
+                        break;
+                    }
+                }
+                
+                return columnMap;
+            } catch (e) {
+                console.error('Error in findColumns:', e);
+                return { date: null, profitLoss: null, position: null, price: null, return: null };
+            }
         }
         
         // Process CSV file
         function processFile(file) {
-            if (!file) {
-                showError("No file selected");
-                return;
-            }
-            
-            // Show loading indicator
-            document.getElementById('file-name').textContent = 'Loading ' + file.name + '...';
-            
-            Papa.parse(file, {
-                header: true,
-                dynamicTyping: true,
-                skipEmptyLines: true,
-                delimitersToGuess: [',', '\t', '|', ';'],
-                complete: function(results) {
-                    if (results && results.data) {
-                        const validData = results.data.filter(row => {
-                            return row && row.Date && 
-                                typeof row["Profit/Loss"] === 'number';
-                        });
-                        
-                        if (validData.length > 0) {
+            try {
+                if (!file) {
+                    showError("No file selected");
+                    return;
+                }
+                
+                if (file.size === 0) {
+                    showError("The selected file appears to be empty");
+                    return;
+                }
+                
+                if (!file.name.toLowerCase().endsWith('.csv')) {
+                    showError("Please select a CSV file");
+                    return;
+                }
+                
+                const fileNameEl = document.getElementById('file-name');
+                if (fileNameEl) fileNameEl.textContent = 'Loading ' + file.name + '...';
+                
+                Papa.parse(file, {
+                    header: true,
+                    dynamicTyping: false,
+                    skipEmptyLines: true,
+                    delimitersToGuess: [',', '\t', '|', ';'],
+                    encoding: 'UTF-8',
+                    complete: function(results) {
+                        try {
+                            if (results.errors && results.errors.length > 0) {
+                                const criticalErrors = results.errors.filter(e => e.type === 'Delimiter' || e.type === 'MissingQuotes');
+                                if (criticalErrors.length > 0) {
+                                    showError("CSV parsing errors: " + criticalErrors.map(e => e.message).join(', '));
+                                    return;
+                                }
+                            }
+                            
+                            if (!results.data || results.data.length === 0) {
+                                showError("No data found in the CSV file");
+                                return;
+                            }
+                            
+                            const headers = results.meta.fields || [];
+                            const columnMap = findColumns(headers);
+                            
+                            if (!columnMap.date) {
+                                showError("Could not find a Date column");
+                                return;
+                            }
+                            
+                            if (!columnMap.profitLoss) {
+                                showError("Could not find a Profit/Loss column");
+                                return;
+                            }
+                            
+                            const validData = [];
+                            let dateParsingIssues = 0;
+                            
+                            results.data.forEach((row, index) => {
+                                try {
+                                    if (!row) return;
+                                    
+                                    const dateValue = row[columnMap.date];
+                                    const plValue = row[columnMap.profitLoss];
+                                    
+                                    if (!dateValue || String(dateValue).trim() === '') return;
+                                    if (plValue === null || plValue === undefined || String(plValue).trim() === '') return;
+                                    
+                                    const parsedDate = parseDate(dateValue);
+                                    if (!parsedDate || parsedDate.getFullYear() < 1900) {
+                                        dateParsingIssues++;
+                                        return;
+                                    }
+                                    
+                                    const profitLoss = safeParseFloat(plValue);
+                                    
+                                    const standardizedRow = {
+                                        Date: String(dateValue).trim(),
+                                        "Profit/Loss": profitLoss,
+                                        Possition: columnMap.position ? row[columnMap.position] : 'Trade',
+                                        Price: columnMap.price ? safeParseFloat(row[columnMap.price]) : 0,
+                                        Return: columnMap.return ? row[columnMap.return] : (profitLoss >= 0 ? ' Profit ' : ' loss ')
+                                    };
+                                    
+                                    validData.push(standardizedRow);
+                                } catch (e) {
+                                    console.error('Error processing row:', index, e);
+                                }
+                            });
+                            
+                            if (validData.length === 0) {
+                                let errorMsg = "No valid trade data found";
+                                if (dateParsingIssues > 0) {
+                                    errorMsg += `. Found ${dateParsingIssues} rows with date parsing issues`;
+                                }
+                                showError(errorMsg);
+                                return;
+                            }
+                            
                             // Sort data by date
                             validData.sort((a, b) => {
-                                if (!a || !a.Date) return -1;
-                                if (!b || !b.Date) return 1;
                                 const dateA = parseDate(a.Date);
                                 const dateB = parseDate(b.Date);
+                                if (!dateA) return -1;
+                                if (!dateB) return 1;
                                 return dateA - dateB;
                             });
                             
                             tradeData = validData;
+                            
+                            // Update all components
+                            updateAllMetrics(tradeData);
                             createCumulativeChart(tradeData);
                             updateRecentTradesTable(tradeData);
-                            document.getElementById('file-name').textContent = file.name + ' (' + validData.length + ' trades loaded)';
-                        } else {
-                            showError("No valid trade data found in file");
+                            createMonthlyChartFromData(tradeData);
+                            
+                            // Update file status
+                            if (fileNameEl) {
+                                fileNameEl.textContent = file.name + ' (' + validData.length + ' trades loaded successfully)';
+                                fileNameEl.style.color = '#34C759';
+                            }
+                            
+                            console.log("File processed successfully:", validData.length, "trades loaded");
+                            
+                        } catch (e) {
+                            console.error("Error in Papa.parse complete:", e);
+                            showError("Error processing CSV data: " + e.message);
                         }
+                    },
+                    error: function(error) {
+                        console.error("Papa Parse error:", error);
+                        showError("Error parsing CSV: " + error.message);
                     }
-                },
-                error: function(error) {
-                    showError("Error parsing CSV: " + error.message);
-                }
-            });
+                });
+            } catch (e) {
+                console.error('Error in processFile:', e);
+                showError("Error processing file: " + e.message);
+            }
         }
         
         // Initialize event listeners
         function initializeEventListeners() {
-            // File upload handler
-            document.getElementById('file-upload').addEventListener('change', function(e) {
-                const file = e.target.files[0];
-                if (file) {
-                    processFile(file);
+            try {
+                const fileUpload = document.getElementById('file-upload');
+                if (fileUpload) {
+                    fileUpload.addEventListener('change', function(e) {
+                        try {
+                            const file = e.target.files[0];
+                            if (file) {
+                                processFile(file);
+                            }
+                        } catch (error) {
+                            console.error('Error in file upload handler:', error);
+                            showError("Error handling file upload: " + error.message);
+                        }
+                    });
                 }
-            });
+            } catch (e) {
+                console.error('Error in initializeEventListeners:', e);
+            }
         }
         
         // Initialize when DOM is ready
         document.addEventListener('DOMContentLoaded', function() {
-            initializeDashboard();
-            updateRecentTradesTable([]);
-            initializeEventListeners();
+            try {
+                console.log("Initializing dashboard...");
+                initializeDashboard();
+                updateRecentTradesTable([]);
+                initializeEventListeners();
+                console.log("Dashboard initialized successfully");
+            } catch (error) {
+                console.error("Error during dashboard initialization:", error);
+                showError("Dashboard initialization failed: " + error.message);
+            }
         });
     </script>
 </body>
