@@ -163,6 +163,9 @@
         
         <div class="card full-width">
             <h2>Recent Trades</h2>
+            <div style="margin-bottom: 10px; padding: 8px; background: #fff3cd; border-radius: 4px; font-size: 14px; color: #856404;">
+                <strong>Note:</strong> This shows sample data. Upload your CSV file to see your actual recent trades with real prices and positions.
+            </div>
             <div style="max-height: 300px; overflow-y: auto;">
                 <table id="recent-trades">
                     <thead>
@@ -764,17 +767,18 @@
                 tableBody.innerHTML = '';
                 
                 if (!data || data.length === 0) {
+                    // Sample data placeholder - will be replaced when CSV is uploaded
                     const sampleTrades = [
-                        { Date: '25/05/2025', Possition: 'Buy', Price: 89456, "Profit/Loss": 1245, Return: ' Profit ' },
-                        { Date: '24/05/2025', Possition: 'Sell', Price: 88234, "Profit/Loss": 892, Return: ' Profit ' },
-                        { Date: '23/05/2025', Possition: 'Buy', Price: 87123, "Profit/Loss": 1567, Return: ' Profit ' },
-                        { Date: '22/05/2025', Possition: 'Sell', Price: 86789, "Profit/Loss": 734, Return: ' Profit ' },
-                        { Date: '21/05/2025', Possition: 'Buy', Price: 85678, "Profit/Loss": 1123, Return: ' Profit ' },
-                        { Date: '20/05/2025', Possition: 'Sell', Price: 84567, "Profit/Loss": 2345, Return: ' Profit ' },
-                        { Date: '19/05/2025', Possition: 'Buy', Price: 83456, "Profit/Loss": 678, Return: ' Profit ' },
-                        { Date: '18/05/2025', Possition: 'Sell', Price: 82345, "Profit/Loss": -456, Return: ' loss ' },
-                        { Date: '17/05/2025', Possition: 'Buy', Price: 81234, "Profit/Loss": 1789, Return: ' Profit ' },
-                        { Date: '16/05/2025', Possition: 'Sell', Price: 80123, "Profit/Loss": 567, Return: ' Profit ' }
+                        { Date: '25/05/2025', Possition: 'Buy', Price: 0, "Profit/Loss": 1245, Return: ' Profit ' },
+                        { Date: '24/05/2025', Possition: 'Sell', Price: 0, "Profit/Loss": 892, Return: ' Profit ' },
+                        { Date: '23/05/2025', Possition: 'Buy', Price: 0, "Profit/Loss": 1567, Return: ' Profit ' },
+                        { Date: '22/05/2025', Possition: 'Sell', Price: 0, "Profit/Loss": 734, Return: ' Profit ' },
+                        { Date: '21/05/2025', Possition: 'Buy', Price: 0, "Profit/Loss": 1123, Return: ' Profit ' },
+                        { Date: '20/05/2025', Possition: 'Sell', Price: 0, "Profit/Loss": 2345, Return: ' Profit ' },
+                        { Date: '19/05/2025', Possition: 'Buy', Price: 0, "Profit/Loss": 678, Return: ' Profit ' },
+                        { Date: '18/05/2025', Possition: 'Sell', Price: 0, "Profit/Loss": -456, Return: ' loss ' },
+                        { Date: '17/05/2025', Possition: 'Buy', Price: 0, "Profit/Loss": 1789, Return: ' Profit ' },
+                        { Date: '16/05/2025', Possition: 'Sell', Price: 0, "Profit/Loss": 567, Return: ' Profit ' }
                     ];
                     data = sampleTrades;
                 }
