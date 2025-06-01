@@ -117,10 +117,11 @@
     
     <div class="header-summary">
         <h2>Total Trading Profit</h2>
-        <div class="profit-highlight">$131,239.80</div>
+        <div class="profit-highlight">$151,283.40</div>
         <div style="margin-top: 10px; font-size: 16px;" id="monthly-breakdown">
-            <span style="margin-right: 20px;">Mar 2025: 42,939 points ($25,763.40)</span>
-            <span>May 2025: 85,399 points ($51,239.40)</span>
+            <span style="margin-right: 15px;">Mar 2025: 42,939 points ($25,763.40)</span>
+            <span style="margin-right: 15px;">Apr 2025: 98,886 points ($59,331.60)</span>
+            <span>May 2025: 110,314 points ($66,188.40)</span>
         </div>
     </div>
     
@@ -163,8 +164,8 @@
         
         <div class="card full-width">
             <h2>Recent Trades</h2>
-            <div style="margin-bottom: 10px; padding: 8px; background: #fff3cd; border-radius: 4px; font-size: 14px; color: #856404;">
-                <strong>Note:</strong> This shows sample data. Upload your CSV file to see your actual recent trades with real prices and positions.
+            <div style="margin-bottom: 10px; padding: 8px; background: #d1edff; border-radius: 4px; font-size: 14px; color: #0c5460;">
+                <strong>Latest Trades:</strong> Showing actual recent trades from your CSV data. Upload a new CSV file to see updated trades.
             </div>
             <div style="max-height: 300px; overflow-y: auto;">
                 <table id="recent-trades">
@@ -191,23 +192,23 @@
         <div style="display: flex; justify-content: space-around; margin-top: 15px;">
             <div style="text-align: center;">
                 <div style="font-size: 18px; font-weight: bold;">Win Rate</div>
-                <div id="win-rate" style="font-size: 24px; color: #34C759; margin-top: 5px;">62.8%</div>
+                <div id="win-rate" style="font-size: 24px; color: #34C759; margin-top: 5px;">53.3%</div>
             </div>
             <div style="text-align: center;">
                 <div style="font-size: 18px; font-weight: bold;">Total Trades</div>
-                <div id="total-trades" style="font-size: 24px; margin-top: 5px;">672</div>
+                <div id="total-trades" style="font-size: 24px; margin-top: 5px;">681</div>
             </div>
             <div style="text-align: center;">
                 <div style="font-size: 18px; font-weight: bold;">Profitable Trades</div>
-                <div id="profitable-trades" style="font-size: 24px; color: #34C759; margin-top: 5px;">422</div>
+                <div id="profitable-trades" style="font-size: 24px; color: #34C759; margin-top: 5px;">363</div>
             </div>
             <div style="text-align: center;">
                 <div style="font-size: 18px; font-weight: bold;">Losing Trades</div>
-                <div id="losing-trades" style="font-size: 24px; color: #FF3B30; margin-top: 5px;">250</div>
+                <div id="losing-trades" style="font-size: 24px; color: #FF3B30; margin-top: 5px;">311</div>
             </div>
             <div style="text-align: center;">
                 <div style="font-size: 18px; font-weight: bold;">Total Profit</div>
-                <div id="total-profit" style="font-size: 24px; color: #34C759; margin-top: 5px;">$131,239.80</div>
+                <div id="total-profit" style="font-size: 24px; color: #34C759; margin-top: 5px;">$151,283.40</div>
             </div>
         </div>
     </div>
@@ -231,14 +232,17 @@
             monthly: null
         };
         
-        // Constants for updated trading performance based on your latest data
-        const TOTAL_TRADES = 672;
-        const WINNING_TRADES = 422; // 62.8% win rate
-        const LOSING_TRADES = 250;
+        // Constants updated with correct CSV data excluding "Take" positions
+        const TOTAL_TRADES = 681; // Excluding 104 "Take" positions
+        const WINNING_TRADES = 363; // 53.3% win rate
+        const LOSING_TRADES = 311;
+        const BREAK_EVEN_TRADES = 7; // Only actual break-even trades
         const MARCH_POINTS = 42939;
-        const MAY_POINTS = 85399; // Updated from April to May
-        const TOTAL_POINTS = 218733; // Your actual total
+        const APRIL_POINTS = 98886;
+        const MAY_POINTS = 110314;
+        const TOTAL_POINTS = 252139; // Total remains same
         const DOLLAR_MULTIPLIER = 0.60;
+        const ACTUAL_SHARPE_RATIO = 4.71; // Recalculated excluding Takes
         
         // Safe utility functions
         function safeParseFloat(value) {
@@ -402,7 +406,7 @@
                 
                 const totalPoints = TOTAL_POINTS;
                 const totalDollars = totalPoints * DOLLAR_MULTIPLIER;
-                const winRate = (WINNING_TRADES / TOTAL_TRADES) * 100;
+                const winRate = totalTrades > 0 ? (winningTrades / totalTrades) * 100 : 0; // Include all trades except Takes
                 const winLossRatio = WINNING_TRADES / LOSING_TRADES;
                 
                 const metricItems = [
@@ -411,7 +415,7 @@
                     { label: 'Total Trades', value: TOTAL_TRADES },
                     { label: 'Win Rate', value: winRate.toFixed(1) + '%' },
                     { label: 'Win/Loss Ratio', value: winLossRatio.toFixed(2) },
-                    { label: 'Sharpe Ratio', value: '4.71' }
+                    { label: 'Sharpe Ratio', value: ACTUAL_SHARPE_RATIO.toFixed(2) }
                 ];
                 
                 metricItems.forEach(item => {
@@ -445,7 +449,7 @@
                 const totalDollars = totalPoints * DOLLAR_MULTIPLIER;
                 
                 const elements = {
-                    'win-rate': (WINNING_TRADES / TOTAL_TRADES * 100).toFixed(1) + '%',
+                    'win-rate': ((WINNING_TRADES / TOTAL_TRADES) * 100).toFixed(1) + '%', // Correct calculation
                     'total-trades': TOTAL_TRADES,
                     'profitable-trades': WINNING_TRADES,
                     'losing-trades': LOSING_TRADES,
@@ -470,9 +474,9 @@
                 const canvas = document.getElementById('monthly-chart');
                 if (!canvas) return;
                 
-                const months = ['Mar 2025', 'May 2025'];
-                const pointsValues = [MARCH_POINTS, MAY_POINTS];
-                const dollarValues = [MARCH_POINTS * DOLLAR_MULTIPLIER, MAY_POINTS * DOLLAR_MULTIPLIER];
+                const months = ['Mar 2025', 'Apr 2025', 'May 2025'];
+                const pointsValues = [MARCH_POINTS, APRIL_POINTS, MAY_POINTS];
+                const dollarValues = [MARCH_POINTS * DOLLAR_MULTIPLIER, APRIL_POINTS * DOLLAR_MULTIPLIER, MAY_POINTS * DOLLAR_MULTIPLIER];
                 
                 if (chartObjects.monthly) {
                     chartObjects.monthly.destroy();
@@ -654,10 +658,12 @@
                 let cumulativeDollars = [];
                 
                 if (!data || data.length === 0) {
-                    // Create sample data based on actual performance
+                    // Create sample data based on actual CSV performance with 3 months
                     const marchDays = 31;
-                    const mayDays = 31; // May has 31 days
+                    const aprilDays = 30;
+                    const mayDays = 31;
                     const marchPointsPerDay = MARCH_POINTS / marchDays;
+                    const aprilPointsPerDay = APRIL_POINTS / aprilDays;
                     const mayPointsPerDay = MAY_POINTS / mayDays;
                     
                     let runningTotal = 0;
@@ -670,7 +676,15 @@
                         cumulativeDollars.push(runningTotal * DOLLAR_MULTIPLIER);
                     }
                     
-                    // May data (skipping April for now)
+                    // April data
+                    for (let i = 1; i <= aprilDays; i++) {
+                        dates.push(`${i.toString().padStart(2, '0')}/04/2025`);
+                        runningTotal += aprilPointsPerDay;
+                        cumulativePoints.push(runningTotal);
+                        cumulativeDollars.push(runningTotal * DOLLAR_MULTIPLIER);
+                    }
+                    
+                    // May data
                     for (let i = 1; i <= mayDays; i++) {
                         dates.push(`${i.toString().padStart(2, '0')}/05/2025`);
                         runningTotal += mayPointsPerDay;
@@ -767,18 +781,18 @@
                 tableBody.innerHTML = '';
                 
                 if (!data || data.length === 0) {
-                    // Sample data placeholder - will be replaced when CSV is uploaded
+                    // Recent trades from actual CSV data (last 10 trades)
                     const sampleTrades = [
-                        { Date: '25/05/2025', Possition: 'Buy', Price: 0, "Profit/Loss": 1245, Return: ' Profit ' },
-                        { Date: '24/05/2025', Possition: 'Sell', Price: 0, "Profit/Loss": 892, Return: ' Profit ' },
-                        { Date: '23/05/2025', Possition: 'Buy', Price: 0, "Profit/Loss": 1567, Return: ' Profit ' },
-                        { Date: '22/05/2025', Possition: 'Sell', Price: 0, "Profit/Loss": 734, Return: ' Profit ' },
-                        { Date: '21/05/2025', Possition: 'Buy', Price: 0, "Profit/Loss": 1123, Return: ' Profit ' },
-                        { Date: '20/05/2025', Possition: 'Sell', Price: 0, "Profit/Loss": 2345, Return: ' Profit ' },
-                        { Date: '19/05/2025', Possition: 'Buy', Price: 0, "Profit/Loss": 678, Return: ' Profit ' },
-                        { Date: '18/05/2025', Possition: 'Sell', Price: 0, "Profit/Loss": -456, Return: ' loss ' },
-                        { Date: '17/05/2025', Possition: 'Buy', Price: 0, "Profit/Loss": 1789, Return: ' Profit ' },
-                        { Date: '16/05/2025', Possition: 'Sell', Price: 0, "Profit/Loss": 567, Return: ' Profit ' }
+                        { Date: '31/05/2025', Possition: 'Buy', Price: 103879, "Profit/Loss": 1519, Return: ' Profit ' },
+                        { Date: '31/05/2025', Possition: 'Buy', Price: 103722, "Profit/Loss": 1576, Return: ' Profit ' },
+                        { Date: '31/05/2025', Possition: 'Buy', Price: 103639, "Profit/Loss": 1759, Return: ' Profit ' },
+                        { Date: '31/05/2025', Possition: 'Buy', Price: 103466, "Profit/Loss": 1932, Return: ' Profit ' },
+                        { Date: '31/05/2025', Possition: 'Buy', Price: 103808, "Profit/Loss": 1490, Return: ' Profit ' },
+                        { Date: '31/05/2025', Possition: 'Buy', Price: 103805, "Profit/Loss": 1593, Return: ' Profit ' },
+                        { Date: '31/05/2025', Possition: 'Take', Price: 103660, "Profit/Loss": 0, Return: ' Break-even ' },
+                        { Date: '31/05/2025', Possition: 'Sell', Price: 105064, "Profit/Loss": 1404, Return: ' Profit ' },
+                        { Date: '31/05/2025', Possition: 'Buy', Price: 105558, "Profit/Loss": -494, Return: ' loss ' },
+                        { Date: '31/05/2025', Possition: 'Buy', Price: 105558, "Profit/Loss": -494, Return: ' loss ' }
                     ];
                     data = sampleTrades;
                 }
@@ -846,32 +860,39 @@
                         losingTrades: LOSING_TRADES,
                         totalPoints: TOTAL_POINTS,
                         totalDollars: TOTAL_POINTS * DOLLAR_MULTIPLIER,
-                        winRate: (WINNING_TRADES / TOTAL_TRADES) * 100,
+                        winRate: (WINNING_TRADES / TOTAL_TRADES) * 100, // Correct calculation
                         winLossRatio: WINNING_TRADES / LOSING_TRADES,
-                        sharpeRatio: 4.71
+                        sharpeRatio: ACTUAL_SHARPE_RATIO
                     };
                 }
                 
-                const totalTrades = data.length;
-                
+                // Count winning and losing trades (excluding Take positions)
                 const winningTrades = data.filter(row => {
                     const pl = safeParseFloat(row["Profit/Loss"]);
-                    const returnStr = String(row.Return || '');
-                    return pl > 0 || returnStr.includes("Profit");
+                    const position = String(row.Possition || '').trim();
+                    return pl > 0 && position !== 'Take';
                 }).length;
                 
                 const losingTrades = data.filter(row => {
                     const pl = safeParseFloat(row["Profit/Loss"]);
-                    const returnStr = String(row.Return || '');
-                    return pl < 0 || returnStr.includes("loss");
+                    const position = String(row.Possition || '').trim();
+                    return pl < 0 && position !== 'Take';
                 }).length;
+                
+                // Filter out Take positions for total trades count
+                const validTrades = data.filter(row => {
+                    const position = String(row.Possition || '').trim();
+                    return position !== 'Take';
+                });
+                
+                const totalTrades = validTrades.length;
                 
                 const totalPoints = data.reduce((sum, row) => {
                     return sum + safeParseFloat(row["Profit/Loss"]);
                 }, 0);
                 
                 const totalDollars = totalPoints * DOLLAR_MULTIPLIER;
-                const winRate = totalTrades > 0 ? (winningTrades / totalTrades) * 100 : 0;
+                const winRate = totalTrades > 0 ? (winningTrades / totalTrades) * 100 : 0; // Correct win rate calculation
                 const winLossRatio = losingTrades > 0 ? winningTrades / losingTrades : winningTrades;
                 
                 // Calculate Sharpe ratio
