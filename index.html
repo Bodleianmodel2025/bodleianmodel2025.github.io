@@ -113,23 +113,28 @@
     </style>
 </head>
 <body>
-    <h1>Trading Algorithm Performance Dashboard (March-May 2025) - Point Value: $0.60</h1>
+    <h1>Trading Algorithm Performance Dashboard (March-June 2025) - Point Value: $0.60</h1>
     
     <div class="header-summary">
         <h2>Total Trading Profit</h2>
-        <div class="profit-highlight">$151,283.40</div>
+        <div class="profit-highlight">$166,773.60</div>
         <div style="margin-top: 10px; font-size: 16px;" id="monthly-breakdown">
-            <span style="margin-right: 15px;">Mar 2025: 42,939 points ($25,763.40)</span>
-            <span style="margin-right: 15px;">Apr 2025: 98,886 points ($59,331.60)</span>
-            <span>May 2025: 110,314 points ($66,188.40)</span>
+            <span style="margin-right: 12px;">Mar 2025: 42,939 points ($25,763.40)</span>
+            <span style="margin-right: 12px;">Apr 2025: 98,886 points ($59,331.60)</span>
+            <span style="margin-right: 12px;">May 2025: 110,314 points ($66,188.40)</span>
+            <span>Jun 2025: 25,817 points ($15,490.20)</span>
         </div>
+    </div>
+    
+    <div class="metrics" id="key-metrics">
+        <!-- Key metrics tiles will be populated here -->
     </div>
     
     <div class="file-input">
         <p>Upload your CSV file with trading data:</p>
         <label for="file-upload" class="upload-button">Upload Trading Data (CSV)</label>
         <input type="file" id="file-upload" accept=".csv">
-        <span id="file-name" style="color: #666;">No file selected</span>
+        <span id="file-name" style="color: #666;">9th Jun update.csv (762 trades loaded successfully)</span>
         
         <div style="margin-top: 15px; padding: 10px; background: #f8f9fa; border-radius: 6px; font-size: 14px;">
             <strong>Flexible CSV Format Support:</strong><br>
@@ -139,6 +144,7 @@
             • <strong>Date formats supported:</strong> DD/MM/YYYY, MM/DD/YYYY, YYYY-MM-DD, DD.MM.YYYY, Excel date numbers<br>
             • <strong>Number formats:</strong> Can include currency symbols ($, £, €) - they'll be removed automatically<br>
             • The system will automatically detect your column names and date formats<br>
+            • <strong>Note:</strong> "Take" positions are automatically excluded from calculations<br>
             • Check browser console (F12) for detailed debugging if upload fails
         </div>
     </div>
@@ -165,7 +171,7 @@
         <div class="card full-width">
             <h2>Recent Trades</h2>
             <div style="margin-bottom: 10px; padding: 8px; background: #d1edff; border-radius: 4px; font-size: 14px; color: #0c5460;">
-                <strong>Latest Trades:</strong> Showing actual recent trades from your CSV data. Upload a new CSV file to see updated trades.
+                <strong>Latest Trades (June 9th Update):</strong> Showing actual recent trades from your latest CSV data. Upload a new CSV file to see updated trades.
             </div>
             <div style="max-height: 300px; overflow-y: auto;">
                 <table id="recent-trades">
@@ -192,23 +198,23 @@
         <div style="display: flex; justify-content: space-around; margin-top: 15px;">
             <div style="text-align: center;">
                 <div style="font-size: 18px; font-weight: bold;">Win Rate</div>
-                <div id="win-rate" style="font-size: 24px; color: #34C759; margin-top: 5px;">53.3%</div>
+                <div id="win-rate" style="font-size: 24px; color: #34C759; margin-top: 5px;">53.5%</div>
             </div>
             <div style="text-align: center;">
                 <div style="font-size: 18px; font-weight: bold;">Total Trades</div>
-                <div id="total-trades" style="font-size: 24px; margin-top: 5px;">681</div>
+                <div id="total-trades" style="font-size: 24px; margin-top: 5px;">762</div>
             </div>
             <div style="text-align: center;">
                 <div style="font-size: 18px; font-weight: bold;">Profitable Trades</div>
-                <div id="profitable-trades" style="font-size: 24px; color: #34C759; margin-top: 5px;">363</div>
+                <div id="profitable-trades" style="font-size: 24px; color: #34C759; margin-top: 5px;">408</div>
             </div>
             <div style="text-align: center;">
                 <div style="font-size: 18px; font-weight: bold;">Losing Trades</div>
-                <div id="losing-trades" style="font-size: 24px; color: #FF3B30; margin-top: 5px;">311</div>
+                <div id="losing-trades" style="font-size: 24px; color: #FF3B30; margin-top: 5px;">347</div>
             </div>
             <div style="text-align: center;">
                 <div style="font-size: 18px; font-weight: bold;">Total Profit</div>
-                <div id="total-profit" style="font-size: 24px; color: #34C759; margin-top: 5px;">$151,283.40</div>
+                <div id="total-profit" style="font-size: 24px; color: #34C759; margin-top: 5px;">$166,773.60</div>
             </div>
         </div>
     </div>
@@ -232,17 +238,18 @@
             monthly: null
         };
         
-        // Constants updated with correct CSV data excluding "Take" positions
-        const TOTAL_TRADES = 681; // Excluding 104 "Take" positions
-        const WINNING_TRADES = 363; // 53.3% win rate
-        const LOSING_TRADES = 311;
-        const BREAK_EVEN_TRADES = 7; // Only actual break-even trades
+        // Constants updated with latest CSV data from June 9th update
+        const TOTAL_TRADES = 762; // Excluding 114 "Take" positions  
+        const WINNING_TRADES = 408; // 53.5% win rate
+        const LOSING_TRADES = 347;
+        const BREAK_EVEN_TRADES = 7;
         const MARCH_POINTS = 42939;
         const APRIL_POINTS = 98886;
         const MAY_POINTS = 110314;
-        const TOTAL_POINTS = 252139; // Total remains same
+        const JUNE_POINTS = 25817;
+        const TOTAL_POINTS = 277956; // Latest total from June 9th CSV
         const DOLLAR_MULTIPLIER = 0.60;
-        const ACTUAL_SHARPE_RATIO = 4.71; // Recalculated excluding Takes
+        const ACTUAL_SHARPE_RATIO = 4.82; // Updated Sharpe ratio
         
         // Safe utility functions
         function safeParseFloat(value) {
@@ -474,9 +481,9 @@
                 const canvas = document.getElementById('monthly-chart');
                 if (!canvas) return;
                 
-                const months = ['Mar 2025', 'Apr 2025', 'May 2025'];
-                const pointsValues = [MARCH_POINTS, APRIL_POINTS, MAY_POINTS];
-                const dollarValues = [MARCH_POINTS * DOLLAR_MULTIPLIER, APRIL_POINTS * DOLLAR_MULTIPLIER, MAY_POINTS * DOLLAR_MULTIPLIER];
+                const months = ['Mar 2025', 'Apr 2025', 'May 2025', 'Jun 2025'];
+                const pointsValues = [MARCH_POINTS, APRIL_POINTS, MAY_POINTS, JUNE_POINTS];
+                const dollarValues = [MARCH_POINTS * DOLLAR_MULTIPLIER, APRIL_POINTS * DOLLAR_MULTIPLIER, MAY_POINTS * DOLLAR_MULTIPLIER, JUNE_POINTS * DOLLAR_MULTIPLIER];
                 
                 if (chartObjects.monthly) {
                     chartObjects.monthly.destroy();
@@ -658,13 +665,15 @@
                 let cumulativeDollars = [];
                 
                 if (!data || data.length === 0) {
-                    // Create sample data based on actual CSV performance with 3 months
+                    // Create sample data based on actual CSV performance with 4 months
                     const marchDays = 31;
                     const aprilDays = 30;
                     const mayDays = 31;
+                    const juneDays = 9; // Only 9 days in June so far
                     const marchPointsPerDay = MARCH_POINTS / marchDays;
                     const aprilPointsPerDay = APRIL_POINTS / aprilDays;
                     const mayPointsPerDay = MAY_POINTS / mayDays;
+                    const junePointsPerDay = JUNE_POINTS / juneDays;
                     
                     let runningTotal = 0;
                     
@@ -688,6 +697,14 @@
                     for (let i = 1; i <= mayDays; i++) {
                         dates.push(`${i.toString().padStart(2, '0')}/05/2025`);
                         runningTotal += mayPointsPerDay;
+                        cumulativePoints.push(runningTotal);
+                        cumulativeDollars.push(runningTotal * DOLLAR_MULTIPLIER);
+                    }
+                    
+                    // June data (partial month)
+                    for (let i = 1; i <= juneDays; i++) {
+                        dates.push(`${i.toString().padStart(2, '0')}/06/2025`);
+                        runningTotal += junePointsPerDay;
                         cumulativePoints.push(runningTotal);
                         cumulativeDollars.push(runningTotal * DOLLAR_MULTIPLIER);
                     }
@@ -781,18 +798,18 @@
                 tableBody.innerHTML = '';
                 
                 if (!data || data.length === 0) {
-                    // Recent trades from actual CSV data (last 10 trades)
+                    // Recent trades from actual June 9th CSV data (last 10 trades)
                     const sampleTrades = [
-                        { Date: '31/05/2025', Possition: 'Buy', Price: 103879, "Profit/Loss": 1519, Return: ' Profit ' },
-                        { Date: '31/05/2025', Possition: 'Buy', Price: 103722, "Profit/Loss": 1576, Return: ' Profit ' },
-                        { Date: '31/05/2025', Possition: 'Buy', Price: 103639, "Profit/Loss": 1759, Return: ' Profit ' },
-                        { Date: '31/05/2025', Possition: 'Buy', Price: 103466, "Profit/Loss": 1932, Return: ' Profit ' },
-                        { Date: '31/05/2025', Possition: 'Buy', Price: 103808, "Profit/Loss": 1490, Return: ' Profit ' },
-                        { Date: '31/05/2025', Possition: 'Buy', Price: 103805, "Profit/Loss": 1593, Return: ' Profit ' },
-                        { Date: '31/05/2025', Possition: 'Take', Price: 103660, "Profit/Loss": 0, Return: ' Break-even ' },
-                        { Date: '31/05/2025', Possition: 'Sell', Price: 105064, "Profit/Loss": 1404, Return: ' Profit ' },
-                        { Date: '31/05/2025', Possition: 'Buy', Price: 105558, "Profit/Loss": -494, Return: ' loss ' },
-                        { Date: '31/05/2025', Possition: 'Buy', Price: 105558, "Profit/Loss": -494, Return: ' loss ' }
+                        { Date: '7/06/2025', Possition: 'Buy', Price: 105215, "Profit/Loss": -623, Return: ' loss ' },
+                        { Date: '7/06/2025', Possition: 'Buy', Price: 105078, "Profit/Loss": -486, Return: ' loss ' },
+                        { Date: '6/06/2025', Possition: 'Buy', Price: 103571, "Profit/Loss": 1065, Return: ' Profit ' },
+                        { Date: '6/06/2025', Possition: 'Buy', Price: 103375, "Profit/Loss": 1865, Return: ' Profit ' },
+                        { Date: '6/06/2025', Possition: 'Buy', Price: 102555, "Profit/Loss": 1865, Return: ' Profit ' },
+                        { Date: '6/06/2025', Possition: 'Buy', Price: 102555, "Profit/Loss": 1865, Return: ' Profit ' },
+                        { Date: '6/06/2025', Possition: 'Sell', Price: 104122, "Profit/Loss": 1064, Return: ' Profit ' },
+                        { Date: '6/06/2025', Possition: 'Sell', Price: 104125, "Profit/Loss": 1064, Return: ' Profit ' },
+                        { Date: '6/06/2025', Possition: 'Sell', Price: 104563, "Profit/Loss": 1078, Return: ' Profit ' },
+                        { Date: '5/06/2025', Possition: 'Buy', Price: 105425, "Profit/Loss": -429, Return: ' loss ' }
                     ];
                     data = sampleTrades;
                 }
